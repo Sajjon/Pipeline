@@ -8,29 +8,25 @@
 import Foundation
 
 // MARK: Pipeline
-public struct Pipeline<Input, Output>: Step {
-    private let anyStep: AnyStep<Input, Output>
+public struct Pipeline<Output>: CustomStringConvertible {
+    public typealias SomeInput = Any
+    public let description: String
+    private let _perform: (SomeInput) throws -> Output
 
-    public init(step: AnyStep<Input, Output>) {
-        self.anyStep = step
+    init<Input>(description: String, perform: @escaping (Input) throws -> Output) {
+        self.description = description
+        self._perform = {
+            guard let input = $0 as? Input else {
+                fatalError("\n\n⚠️Wrong input type, got value: `\($0)` of type: '\(Mirror.init(reflecting: $0).subjectType)', but expected type: '\(Input.self)'\n\n")
+            }
+            return try perform(input)
+        }
     }
 }
 
-// MARK: Step
 public extension Pipeline {
-    var name: String { anyStep.name }
-    func perform(input: Input) throws -> Output {
-        try anyStep.perform(input: input)
-    }
-}
-
-// MARK: Init
-public extension Pipeline {
-    init(steps: String, _ perform: @escaping (Input) throws -> Output) {
-        self.init(step: AnyStep(
-            name: steps,
-            perform: perform
-        ))
+    func perform(input: SomeInput) throws -> Output {
+        try _perform(input)
     }
 }
 
@@ -45,18 +41,18 @@ public extension Pipeline {
     @_functionBuilder
     struct Builder {
 
-        static func buildBlock<A, B>(
-            _ a: A, _ b: B
-        )
-            -> Pipeline<A.Input, B.Output>
-            where
-            A: Step, B: Step,
-            A.Output == B.Input
+        static func buildBlock<Output, StepA, StepB>(
+            _ stepA: StepA,
+            _ stepB: StepB
+        ) -> Pipeline<Output> where
+            StepA: Step, StepB: Step,
+            Output == StepB.Output,
+            StepB.Input == StepA.Output
         {
-            return Pipeline<A.Input, B.Output>(
-                steps: names(of: [a, b])
-            ) { inputA in
-                return try inputA |> a |> b
+            Pipeline<Output>(
+                description: names(of: [stepA, stepB])
+            ) { (inputStepA: StepA.Input) in
+                return try inputStepA |> stepA |> stepB
             }
         }
     }

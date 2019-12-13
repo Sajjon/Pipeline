@@ -5,12 +5,12 @@ final class PipelineTests: XCTestCase {
 
     func testTwoSteps() throws {
 
-        let pipeline = Pipeline<A, C> {
+        let pipeline = Pipeline<C> {
             AtoB()
             BtoC()
         }
-        let output = try pipeline.perform(input: 5)
-        XCTAssertEqual(output, C(B(5)))
+        let output = try pipeline.perform(input: A(5))
+        XCTAssertEqual(output, C(B(A(5))))
     }
 
 
@@ -19,20 +19,17 @@ final class PipelineTests: XCTestCase {
     ]
 }
 
-struct A: Equatable, Codable, ExpressibleByIntegerLiteral {
+struct A: Equatable {
     let int: Int
     init(_ int: Int) {
         self.int = int
     }
-    init(integerLiteral int: Int) {
-        self.int = int
-    }
 }
-struct B: Equatable, Codable {
+struct B: Equatable {
     let a: A
     init(_ a: A) { self.a = a }
 }
-struct C: Equatable, Codable {
+struct C: Equatable {
     let b: B
     init(_ b: B) { self.b = b }
 }
@@ -46,14 +43,4 @@ struct BtoC: Step {
     func perform(input b: B) throws -> C {
         C(b)
     }
-}
-
-extension A {
-    static var irrelevant: Self {
-        Self(Int.irrelevant)
-    }
-}
-
-extension Int {
-    static let irrelevant = 0
 }
