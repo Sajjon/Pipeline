@@ -9,38 +9,54 @@ final class PipelineTests: XCTestCase {
             AtoB()
             BtoC()
         }
-        let output = try pipeline.perform(input: A(5))
-        XCTAssertEqual(output, C(B(A(5))))
+        XCTAssertEqual(pipeline.description, "AtoB -> BtoC")
+        let output = try pipeline.perform(input: A(int: 5))
+        XCTAssertEqual(output, C(b: B(a: A(int: 5))))
     }
 
+    func testThreeSteps() throws {
+
+        let pipeline = Pipeline<D> {
+            AtoB()
+            BtoC()
+            CtoD()
+        }
+        XCTAssertEqual(pipeline.description, "AtoB -> BtoC -> CtoD")
+        let output = try pipeline.perform(input: A(int: 7))
+        XCTAssertEqual(output, D(c: C(b: B(a: A(int: 7)))))
+    }
 
     static var allTests = [
         ("testTwoSteps", testTwoSteps),
+        ("testThreeSteps", testThreeSteps),
     ]
 }
 
 struct A: Equatable {
     let int: Int
-    init(_ int: Int) {
-        self.int = int
-    }
 }
 struct B: Equatable {
     let a: A
-    init(_ a: A) { self.a = a }
 }
 struct C: Equatable {
     let b: B
-    init(_ b: B) { self.b = b }
+}
+struct D: Equatable {
+    let c: C
 }
 
 struct AtoB: Step {
     func perform(input a: A) throws -> B {
-        B(a)
+        B(a: a)
     }
 }
 struct BtoC: Step {
     func perform(input b: B) throws -> C {
-        C(b)
+        C(b: b)
+    }
+}
+struct CtoD: Step {
+    func perform(input c: C) throws -> D {
+        D(c: c)
     }
 }

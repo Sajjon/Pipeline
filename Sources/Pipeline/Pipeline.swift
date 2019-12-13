@@ -41,18 +41,36 @@ public extension Pipeline {
     @_functionBuilder
     struct Builder {
 
-        static func buildBlock<Output, StepA, StepB>(
+        static func buildBlock<StepA, StepB>(
             _ stepA: StepA,
             _ stepB: StepB
-        ) -> Pipeline<Output> where
-            StepA: Step, StepB: Step,
-            Output == StepB.Output,
+        ) -> Pipeline<StepB.Output> where
+            StepA: Step,
+            StepB: Step,
             StepB.Input == StepA.Output
         {
-            Pipeline<Output>(
+            Pipeline<StepB.Output>(
                 description: names(of: [stepA, stepB])
             ) { (inputStepA: StepA.Input) in
                 return try inputStepA |> stepA |> stepB
+            }
+        }
+
+        static func buildBlock<StepA, StepB, StepC>(
+            _ stepA: StepA,
+            _ stepB: StepB,
+            _ stepC: StepC
+        ) -> Pipeline<StepC.Output> where
+            StepA: Step,
+            StepB: Step,
+            StepC: Step,
+            StepC.Input == StepB.Output,
+            StepB.Input == StepA.Output
+        {
+            Pipeline<StepC.Output>(
+                description: names(of: [stepA, stepB, stepC])
+            ) { (inputStepA: StepA.Input) in
+                return try inputStepA |> stepA |> stepB |> stepC
             }
         }
     }
