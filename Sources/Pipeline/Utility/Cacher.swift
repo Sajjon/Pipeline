@@ -7,8 +7,6 @@
 
 import Foundation
 
-@testable import Pipeline
-
 extension JSONEncoder {
     static var prettyPrinting: JSONEncoder {
         let encoder = JSONEncoder()
@@ -22,24 +20,28 @@ public final class Cacher {
     private let dataSaver: DataSaver
     private let jsonEncoder: JSONEncoder
     private let jsonDecoder: JSONDecoder
+    private let _numberOfSavedEntries: () -> Int
     init(
         dataLoader: DataLoader,
         dataSaver: DataSaver,
         jsonEncoder: JSONEncoder = .prettyPrinting,
-        jsonDecoder: JSONDecoder = .init()
+        jsonDecoder: JSONDecoder = .init(),
+        getNumberOfSavedEntries: @escaping () -> Int
     ) {
         self.dataLoader = dataLoader
         self.dataSaver = dataSaver
         self.jsonEncoder = jsonEncoder
         self.jsonDecoder = jsonDecoder
+        self._numberOfSavedEntries = getNumberOfSavedEntries
     }
 }
 
 public extension Cacher {
-    convenience init(onDisc: OnDiscDataManager = .temporary()) {
+    convenience init(onDisc: OnDiscDataManager) {
         self.init(
             dataLoader: onDisc,
-            dataSaver: onDisc
+            dataSaver: onDisc,
+            getNumberOfSavedEntries: { onDisc.numberOfSavedEntries }
         )
     }
 }
@@ -56,7 +58,8 @@ enum CacheSaveError: Swift.Error {
 
 // MARK: Save
 public extension Cacher {
-    func save<Model>(model: Model, fileName: String) throws where Model: Codable {
+    func save<Model>(model: Model, fileName baseFileName: String) throws where Model: Codable {
+        let fileName = baseFileName + typeName(of: Model.self)
         let data: Data
         do {
             data = try jsonEncoder.encode(model)
@@ -82,7 +85,8 @@ public extension Cacher {
 
 // MARK: Load
 public extension Cacher {
-    func load<Model>(modelType _: Model.Type, fileName: String) throws -> Model where Model: Codable {
+    func load<Model>(modelType _: Model.Type, fileName baseFileName: String) throws -> Model where Model: Codable {
+        let fileName = baseFileName + typeName(of: Model.self)
         let data = try loadData(fileName: fileName)
         do {
             return try jsonDecoder.decode(Model.self, from: data)
@@ -108,4 +112,10 @@ public extension Cacher {
         } catch { unexpectedlyCaughtError(error) }
     }
 
+}
+
+public extension Cacher {
+    var numberOfSavedEntries: Int {
+        _numberOfSavedEntries()
+    }
 }

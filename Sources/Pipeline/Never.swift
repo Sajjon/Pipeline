@@ -11,8 +11,12 @@ func incorrectImplementation(_ reason: String) -> Never {
     fatalError("Incorrect implementation - \(reason)")
 }
 
-func incorrectImplementationShouldAlwaysBeAble(to expected: String) -> Never {
-    incorrectImplementation("Should always be able to: \(expected)")
+func incorrectImplementationShouldAlwaysBeAble(
+    to expected: String,
+    error: Swift.Error? = nil
+) -> Never {
+    let errorStringOrEmpty = error.map { "\($0)" } ?? ""
+    incorrectImplementation("Should always be able to: \(expected)\(errorStringOrEmpty)")
 }
 
 func unexpectedlyCaughtError(_ error: Swift.Error) -> Never {
