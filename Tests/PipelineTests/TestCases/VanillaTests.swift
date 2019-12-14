@@ -85,11 +85,27 @@ final class VanillaTests: XCTestCase {
         XCTAssertEqual(cacher.numberOfSavedEntries, 2)
     }
 
+    func testFlowStepBCachedStartAtA() throws {
+        let cacher = makeCacher()
+        XCTAssertEqual(cacher.numberOfSavedEntries, 0)
+        try cacher.save(model: c)
+        XCTAssertEqual(cacher.numberOfSavedEntries, 1)
+        try doTest(
+            expectedOutput: d,
+            expectedNumberOfStepsTaken: 3,
+            cacher: cacher,
+            input: a,
+            startAt: .stepA
+        )
+        XCTAssertEqual(cacher.numberOfSavedEntries, 3)
+    }
+
     static var allTests = [
         ("testCacher", testCacher),
         ("testFlowNothingCached", testFlowNothingCached),
         ("testFlowStepACachedStartAtA", testFlowStepACachedStartAtA),
         ("testFlowStepBCachedStartAtB", testFlowStepBCachedStartAtB),
+        ("testFlowStepBCachedStartAtA", testFlowStepBCachedStartAtA),
     ]
 }
 
@@ -99,7 +115,6 @@ private extension Cacher {
         model: Model,
         functionNameAsFileName fileName: String = #function
     ) throws where Model: Codable {
-        print("💾✅ saving using `fileName`: '\(fileName)'")
         try save(model: model, fileName: fileName)
     }
 

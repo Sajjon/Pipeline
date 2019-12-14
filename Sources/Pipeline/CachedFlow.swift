@@ -56,7 +56,7 @@ final class CachedFlow<Input, Output> {
             if let foundCached = maybeCached {
                 print("💾 found cached data: '\(foundCached)' for step: '\(step.name)'")
             } else {
-                print("🙅‍♀️ Found no cached data for step: '\(step.name)', using `fileName`: '\(fileName)'")
+                print("🙅‍♀️ Found no cached data for step: '\(step.name)'")
             }
             return maybeCached
         }
@@ -69,27 +69,18 @@ final class CachedFlow<Input, Output> {
         }
 
         // Special case, output was cached => Done!
-        if startStep >= .stepC {
-            print("💡\(startStep) (`startStep`) >= .stepC")
-            if let cached = loadCached(step: stepC) {
-                return cached
-            }
+        if startStep >= .stepC, let cached = loadCached(step: stepC) {
+            return cached
         }
 
         // Bah, lots of logic....
-        if startStep == .stepB {
-            print("💡\(startStep) (`startStep`) == .stepB")
-            if let cached = loadCached(step: stepB) {
-                return try cache(cached |> stepC)
-            }
+        if startStep == .stepB, let cached = loadCached(step: stepB) {
+            return try cache(cached |> stepC)
         }
 
-        if startStep == .stepA {
-            print("💡\(startStep) (`startStep`) == .stepA")
-            if let cached = loadCached(step: stepA) {
-                let outputB = try cache(cached |> stepB)
-                return try cache(outputB |> stepC)
-            }
+        if startStep == .stepA, let cached = loadCached(step: stepA) {
+            let outputB = try cache(cached |> stepB)
+            return try cache(outputB |> stepC)
         }
 
         let outputA = try cache(input |> stepA)
