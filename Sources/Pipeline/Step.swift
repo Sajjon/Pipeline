@@ -17,8 +17,9 @@ public protocol Step: Named {
 }
 
 public extension Named {
-    var name: String {
-        .init(describing: Mirror(reflecting: self).subjectType)
-    }
+    var name: String { typeName(of: self) }
 }
 
+func typeName(of any: Any) -> String {
+    .init(describing: Mirror(reflecting: any).subjectType)
+}

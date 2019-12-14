@@ -32,16 +32,16 @@ final class PipelineTests: XCTestCase {
     ]
 }
 
-struct A: Equatable {
+struct A: Equatable, Codable {
     let int: Int
 }
-struct B: Equatable {
+struct B: Equatable, Codable {
     let a: A
 }
-struct C: Equatable {
+struct C: Equatable, Codable {
     let b: B
 }
-struct D: Equatable {
+struct D: Equatable, Codable {
     let c: C
 }
 

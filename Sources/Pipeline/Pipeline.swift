@@ -17,7 +17,7 @@ public struct Pipeline<Output>: CustomStringConvertible {
         self.description = description
         self._perform = {
             guard let input = $0 as? Input else {
-                fatalError("\n\n⚠️Wrong input type, got value: `\($0)` of type: '\(Mirror.init(reflecting: $0).subjectType)', but expected type: '\(Input.self)'\n\n")
+                wrongType(expected: Input.self, butGot: $0)
             }
             return try perform(input)
         }
@@ -84,7 +84,7 @@ precedencegroup Pipe {
 
 infix operator |>: Pipe
 
-private func |> <SomeStep>(input: SomeStep.Input, step: SomeStep)
+func |> <SomeStep>(input: SomeStep.Input, step: SomeStep)
     throws -> SomeStep.Output
     where
     SomeStep: Step
@@ -92,6 +92,6 @@ private func |> <SomeStep>(input: SomeStep.Input, step: SomeStep)
     try step.perform(input: input)
 }
 
-private func names(of nameOwners: [Named], separator: String = " -> ") -> String {
+func names(of nameOwners: [Named], separator: String = " -> ") -> String {
     nameOwners.map { $0.name }.joined(separator: separator)
 }
