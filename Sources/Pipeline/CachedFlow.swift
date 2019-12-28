@@ -24,10 +24,32 @@ extension Int {
     }
 }
 
+enum IfCachedResultOfStepAfterStartIsFound {
+    case useCached(overwriteCachedWithNew: Bool)
+    case ignoreCachedAndOverwriteItWithNew
+}
+
+//extension IfCachedResultOfStepAfterStartIsFound {
+//    var shouldUseCached: Bool {
+//        switch self {
+//            case .useCached: return true
+//            case .ignoreCachedAndOverwriteItWithNew: return false
+//        }
+//    }
+//
+//    var shouldOverwriteCachedWithNew: Bool {
+//        switch self {
+//            case .useCached(let shouldOverwrite): return shouldOverwrite
+//            case .ignoreCachedAndOverwriteItWithNew: return true
+//        }
+//    }
+//}
+
+
 final class CachedFlow<Input, Output> {
 
     private let cacher: Cacher
-    internal private(set) var stepsTakenInLastFlow = 0
+    internal private(set) var numberOfStepsHavingPerformedWork = 0
 
     init(cacher: Cacher) {
         self.cacher = cacher
@@ -36,20 +58,42 @@ final class CachedFlow<Input, Output> {
     func flowOf(
         fileName: String,
         input outerInput: Input,
+        ifCachedResultOfStepAfterStartIsFound: IfCachedResultOfStepAfterStartIsFound = .ignoreCachedAndOverwriteItWithNew,
         startAt maybeStartStepIndex: UInt? = nil,
         steps: [UnsafeStep]
     ) throws -> Output {
 
-        stepsTakenInLastFlow = 0
+        numberOfStepsHavingPerformedWork = 0
 
-        func workAndCache(
+        func loadFromCacheElseMakeNewAndCacheAny(
+            performingStepNamed: String,
+            loadFromCache: () throws -> Any?,
             makeOutput: () throws -> Any,
             cacheOutput: (Any) throws -> Void
         ) throws -> Any {
-            let newOutput = try makeOutput()
-            stepsTakenInLastFlow += 1
-            try cacheOutput(newOutput)
-            return newOutput
+
+            func makeAndCache() throws -> Any {
+                defer { numberOfStepsHavingPerformedWork += 1 }
+                print("🏋️‍♀️ performing work of step named: `\(performingStepNamed)`")
+                let newOutput = try makeOutput()
+                try cacheOutput(newOutput)
+                return newOutput
+            }
+
+            if let cached = try loadFromCache() {
+                switch ifCachedResultOfStepAfterStartIsFound {
+                    case .ignoreCachedAndOverwriteItWithNew:
+                        return try makeAndCache()
+                    case .useCached(let overwriteCachedWithNew):
+                        if overwriteCachedWithNew {
+                            _ = try makeAndCache()
+                        }
+                        return cached
+
+                }
+            } else {
+                return try makeAndCache()
+            }
         }
 
         func load(fromStep unsafeStep: UnsafeStep) -> Any? {
@@ -64,19 +108,22 @@ final class CachedFlow<Input, Output> {
             try unsafeStep.unsafePerform(anyInput: anyInput)
         }
 
-        func workAndCacheWithStep(
+        func loadFromCacheElseMakeNewAndCacheFromUnsafeStep(
             anyInput: Any,
             unsafeStep: UnsafeStep
         ) throws -> Any {
-            try workAndCache(
+            try loadFromCacheElseMakeNewAndCacheAny(
+                performingStepNamed: unsafeStep.name,
+                loadFromCache: { load(fromStep: unsafeStep) },
                 makeOutput: { try perform(anyInput: anyInput, step: unsafeStep) },
                 cacheOutput: { try save(any: $0, forStep: unsafeStep) }
             )
         }
 
-        let indexOfStartStep = min(Int(maybeStartStepIndex) ?? steps.endIndex, steps.endIndex)
+        let indexOfLastStep = steps.endIndex - 1
+        let indexOfStartStep = min(Int(maybeStartStepIndex) ?? indexOfLastStep, indexOfLastStep)
 
-        if indexOfStartStep == steps.endIndex, let lastStep = steps.last, let cachedAnyFromLast = load(fromStep: lastStep) {
+        if indexOfStartStep == indexOfLastStep, let lastStep = steps.last, let cachedAnyFromLast = load(fromStep: lastStep) {
             // MARK: - Lucky corner case, got cached last
             return castOrKill(cachedAnyFromLast, to: Output.self)
         }
@@ -85,10 +132,15 @@ final class CachedFlow<Input, Output> {
         print("🤷‍♀️ Output of last step no cached, we gotta do some work")
 
         func findMostProgressedCachedResultIfAny(s0meStartInd3x: Int) -> (outputOfLastStep: Any, fromStepAtIndex: Int) {
-            for indexOfStepOffset in 0..<s0meStartInd3x { // reversed order
-                let indexOfStep = s0meStartInd3x - indexOfStepOffset - 1
+            print("🔮 findMostProgressedCachedResultIfAny - s0meStartInd3x: `\(s0meStartInd3x)`")
+            var indexOfStep = s0meStartInd3x
+            while indexOfStep > -1 {
+//                let indexOfStep = s0meStartInd3x - indexOfStepOffset - 1
+                print("🇸🇪 indexOfStep: \(indexOfStep)")
                 let step = steps[indexOfStep]
+                defer { indexOfStep -= 1}
                 guard let mostProgressedCachedResult = load(fromStep: step) else {
+                    print("👻 found no cached result for step named `\(step.name)` at index: `\(indexOfStep)`")
                     continue
                 }
                 print("💡 output of step: `\(step.name)` at index: `\(indexOfStep)`, had cached result: <\(mostProgressedCachedResult)>")
@@ -109,9 +161,9 @@ final class CachedFlow<Input, Output> {
                 return outputOfPipeLineAsAny
             }
             let step = steps[stepStartIndexFuction]
-            let newOutput = try workAndCacheWithStep(anyInput: inputOfFunctionAny, unsafeStep: step)
-            print("🦶 step: `\(step.name)` at index: `\(stepStartIndexFuction)`, with input: <\(inputOfFunctionAny)> resulted in output: <\(newOutput)>")
-
+            print("🦶 step: `\(step.name)` at index: `\(stepStartIndexFuction)`, with input: <\(inputOfFunctionAny)>")
+            let newOutput = try loadFromCacheElseMakeNewAndCacheFromUnsafeStep(anyInput: inputOfFunctionAny, unsafeStep: step)
+            print("🦶✅ resulted in output: <\(newOutput)>")
             return try _flowOf(input: newOutput, stepStartIndexFuction: stepStartIndexFuction + 1)
         }
 

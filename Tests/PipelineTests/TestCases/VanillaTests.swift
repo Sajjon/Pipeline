@@ -66,6 +66,7 @@ final class VanillaTests: XCTestCase {
             expectedOutput: d,
             expectedNumberOfStepsTaken: 2,
             cacher: cacher,
+            ifCachedResultOfStepAfterStartIsFound: .useCached(overwriteCachedWithNew: false),
             startAt: 0
         )
         XCTAssertEqual(cacher.numberOfSavedEntries, 3)
@@ -80,6 +81,7 @@ final class VanillaTests: XCTestCase {
             expectedOutput: d,
             expectedNumberOfStepsTaken: 1,
             cacher: cacher,
+            ifCachedResultOfStepAfterStartIsFound: .useCached(overwriteCachedWithNew: false),
             startAt: 1
         )
         XCTAssertEqual(cacher.numberOfSavedEntries, 2)
@@ -142,6 +144,7 @@ private extension VanillaTests {
         cacher: Cacher,
 
         input: A = .irrelevant,
+        ifCachedResultOfStepAfterStartIsFound: IfCachedResultOfStepAfterStartIsFound = .ignoreCachedAndOverwriteItWithNew,
         startAt maybeStartStepIndex: UInt? = nil,
 
         nameOfFlow: String = #function,
@@ -153,6 +156,7 @@ private extension VanillaTests {
         let output: D = try cachedFlow.flowOf(
             fileName: nameOfFlow,
             input: input,
+            ifCachedResultOfStepAfterStartIsFound: ifCachedResultOfStepAfterStartIsFound,
             startAt: maybeStartStepIndex,
 
             steps: [
@@ -169,9 +173,9 @@ private extension VanillaTests {
         )
 
         XCTAssertEqual(
-            cachedFlow.stepsTakenInLastFlow,
+            cachedFlow.numberOfStepsHavingPerformedWork,
             expectedNumberOfStepsTaken,
-            "Expected `cachedFlow.stepsTakenInLastFlow` to equal: '\(expectedNumberOfStepsTaken)', but got: '\(cachedFlow.stepsTakenInLastFlow)'",
+            "Expected `cachedFlow.numberOfStepsHavingPerformedWork` to equal: '\(expectedNumberOfStepsTaken)', but got: '\(cachedFlow.numberOfStepsHavingPerformedWork)'",
             line: line
         )
     }
