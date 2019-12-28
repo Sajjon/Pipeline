@@ -16,9 +16,7 @@ public struct Pipeline<Output>: CustomStringConvertible {
     init<Input>(description: String, perform: @escaping (Input) throws -> Output) {
         self.description = description
         self._perform = {
-            guard let input = $0 as? Input else {
-                wrongType(expected: Input.self, butGot: $0)
-            }
+            let input: Input = castOrKill($0)
             return try perform(input)
         }
     }

@@ -66,7 +66,7 @@ final class VanillaTests: XCTestCase {
             expectedOutput: d,
             expectedNumberOfStepsTaken: 2,
             cacher: cacher,
-            startAt: .stepA
+            startAt: 0
         )
         XCTAssertEqual(cacher.numberOfSavedEntries, 3)
     }
@@ -80,7 +80,7 @@ final class VanillaTests: XCTestCase {
             expectedOutput: d,
             expectedNumberOfStepsTaken: 1,
             cacher: cacher,
-            startAt: .stepB
+            startAt: 1
         )
         XCTAssertEqual(cacher.numberOfSavedEntries, 2)
     }
@@ -95,7 +95,7 @@ final class VanillaTests: XCTestCase {
             expectedNumberOfStepsTaken: 3,
             cacher: cacher,
             input: a,
-            startAt: .stepA
+            startAt: 0
         )
         XCTAssertEqual(cacher.numberOfSavedEntries, 3)
     }
@@ -142,21 +142,24 @@ private extension VanillaTests {
         cacher: Cacher,
 
         input: A = .irrelevant,
-        startAt startStep: StartStep? = nil,
+        startAt maybeStartStepIndex: UInt? = nil,
 
         nameOfFlow: String = #function,
         line: UInt = #line
     ) throws {
         let cachedFlow = CachedFlow<A, D>(cacher: cacher)
 
+
         let output: D = try cachedFlow.flowOf(
             fileName: nameOfFlow,
             input: input,
-            startAt: startStep,
+            startAt: maybeStartStepIndex,
 
-            AtoB(),
-            BtoC(),
-            CtoD()
+            steps: [
+                AtoB(),
+                BtoC(),
+                CtoD()
+            ]
         )
 
         XCTAssertEqual(

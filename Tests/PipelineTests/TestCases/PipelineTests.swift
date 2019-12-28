@@ -32,17 +32,21 @@ final class PipelineTests: XCTestCase {
     ]
 }
 
-struct A: Equatable, Codable {
+struct A: Equatable, Codable, CustomStringConvertible {
     let int: Int
+    var description: String { "A(\(int))" }
 }
-struct B: Equatable, Codable {
+struct B: Equatable, Codable, CustomStringConvertible {
     let a: A
+    var description: String { "B(\(a))" }
 }
-struct C: Equatable, Codable {
+struct C: Equatable, Codable, CustomStringConvertible {
     let b: B
+    var description: String { "C(\(b))" }
 }
-struct D: Equatable, Codable {
+struct D: Equatable, Codable, CustomStringConvertible {
     let c: C
+    var description: String { "D(\(c))" }
 }
 
 struct AtoB: Step {

@@ -23,6 +23,17 @@ func unexpectedlyCaughtError(_ error: Swift.Error) -> Never {
     incorrectImplementation("Should never see error: \(error)")
 }
 
+func castOrKill<Expected>(_ instance: Any) -> Expected {
+    castOrKill(instance, to: Expected.self)
+}
+
+func castOrKill<Expected>(_ instance: Any, to _: Expected.Type) -> Expected {
+    guard let casted = instance as? Expected else {
+        wrongType(expected: Expected.self, butGot: instance)
+    }
+    return casted
+}
+
 func wrongType<Expected>(
     expected _: Expected.Type,
     butGot instanceOfWrongType: Any

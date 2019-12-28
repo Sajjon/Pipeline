@@ -17,6 +17,12 @@ extension StartStep {
     }
 }
 
+extension Int {
+    init?<Integer>(_ maybeInteger: Integer?) where Integer: FixedWidthInteger {
+        guard let integer = maybeInteger else { return nil }
+        self.init(integer)
+    }
+}
 
 final class CachedFlow<Input, Output> {
 
@@ -27,64 +33,100 @@ final class CachedFlow<Input, Output> {
         self.cacher = cacher
     }
 
-    func flowOf<StepA, StepB, StepC>(
+    func flowOf(
         fileName: String,
-        input: Input,
-        startAt maybeStartStep: StartStep? = nil,
-        _ stepA: StepA,
-        _ stepB: StepB,
-        _ stepC: StepC
-    ) throws -> Output
-        where
-        StepA: Step,
-        StepB: Step,
-        StepC: Step,
-        StepA.Output: Codable,
-        StepB.Output: Codable,
-        StepC.Output: Codable,
-        Input == StepA.Input,
-        Output == StepC.Output,
-        StepA.Output == StepB.Input,
-        StepB.Output == StepC.Input
-    {
+        input outerInput: Input,
+        startAt maybeStartStepIndex: UInt? = nil,
+        steps: [UnsafeStep]
+    ) throws -> Output {
+
         stepsTakenInLastFlow = 0
 
-        let startStep: StartStep = maybeStartStep ?? .stepC
+        func workAndCache(
+            makeOutput: () throws -> Any,
+            cacheOutput: (Any) throws -> Void
+        ) throws -> Any {
+            let newOutput = try makeOutput()
+            stepsTakenInLastFlow += 1
+            try cacheOutput(newOutput)
+            return newOutput
+        }
 
-        func loadCached<S>(step: S) -> S.Output? where S: Step, S.Output: Codable {
-            let maybeCached = try? cacher.load(modelType: S.Output.self, fileName: fileName)
-            if let foundCached = maybeCached {
-                print("💾 found cached data: '\(foundCached)' for step: '\(step.name)'")
-            } else {
-                print("🙅‍♀️ Found no cached data for step: '\(step.name)'")
+        func load(fromStep unsafeStep: UnsafeStep) -> Any? {
+            unsafeStep.loadCached(from: cacher, fileName: fileName)
+        }
+
+        func save(any: Any, forStep unsafeStep: UnsafeStep) throws {
+            try unsafeStep.cache(any, in: cacher, fileName: fileName)
+        }
+
+        func perform(anyInput: Any, step unsafeStep: UnsafeStep) throws -> Any {
+            try unsafeStep.unsafePerform(anyInput: anyInput)
+        }
+
+        func workAndCacheWithStep(
+            anyInput: Any,
+            unsafeStep: UnsafeStep
+        ) throws -> Any {
+            try workAndCache(
+                makeOutput: { try perform(anyInput: anyInput, step: unsafeStep) },
+                cacheOutput: { try save(any: $0, forStep: unsafeStep) }
+            )
+        }
+
+        let indexOfStartStep = min(Int(maybeStartStepIndex) ?? steps.endIndex, steps.endIndex)
+
+        if indexOfStartStep == steps.endIndex, let lastStep = steps.last, let cachedAnyFromLast = load(fromStep: lastStep) {
+            // MARK: - Lucky corner case, got cached last
+            return castOrKill(cachedAnyFromLast, to: Output.self)
+        }
+
+        // MARK: - Last not cached => some work needed
+        print("🤷‍♀️ Output of last step no cached, we gotta do some work")
+
+        func findMostProgressedCachedResultIfAny(s0meStartInd3x: Int) -> (outputOfLastStep: Any, fromStepAtIndex: Int) {
+            for indexOfStepOffset in 0..<s0meStartInd3x { // reversed order
+                let indexOfStep = s0meStartInd3x - indexOfStepOffset - 1
+                let step = steps[indexOfStep]
+                guard let mostProgressedCachedResult = load(fromStep: step) else {
+                    continue
+                }
+                print("💡 output of step: `\(step.name)` at index: `\(indexOfStep)`, had cached result: <\(mostProgressedCachedResult)>")
+                return (outputOfLastStep: mostProgressedCachedResult, fromStepAtIndex: indexOfStep)
             }
-            return maybeCached
+            return (outputOfLastStep: outerInput, fromStepAtIndex: -1)
         }
 
-        func cache<ToCache>(_ makeCachable: @autoclosure () throws -> ToCache) throws -> ToCache where ToCache: Codable {
-            defer { stepsTakenInLastFlow += 1 }
-            let toCache = try makeCachable()
-            try cacher.save(model: toCache, fileName: fileName)
-            return toCache
+        func _flowOf(
+            input inputOfFunctionAny: Any,
+            stepStartIndexFuction: Int
+        ) throws -> Any {
+
+
+            if stepStartIndexFuction >= steps.endIndex {
+                let outputOfPipeLineAsAny = inputOfFunctionAny
+                print("🌈 stepStartIndexFuction >= steps.endIndex: \(stepStartIndexFuction) >= \(steps.endIndex) => outputting value: <\(outputOfPipeLineAsAny)>")
+                return outputOfPipeLineAsAny
+            }
+            let step = steps[stepStartIndexFuction]
+            let newOutput = try workAndCacheWithStep(anyInput: inputOfFunctionAny, unsafeStep: step)
+            print("🦶 step: `\(step.name)` at index: `\(stepStartIndexFuction)`, with input: <\(inputOfFunctionAny)> resulted in output: <\(newOutput)>")
+
+            return try _flowOf(input: newOutput, stepStartIndexFuction: stepStartIndexFuction + 1)
         }
 
-        // Special case, output was cached => Done!
-        if startStep >= .stepC, let cached = loadCached(step: stepC) {
-            return cached
-        }
 
-        // Bah, lots of logic....
-        if startStep == .stepB, let cached = loadCached(step: stepB) {
-            return try cache(cached |> stepC)
-        }
+        let mostProgressedCachedResult = findMostProgressedCachedResultIfAny(s0meStartInd3x: indexOfStartStep)
 
-        if startStep == .stepA, let cached = loadCached(step: stepA) {
-            let outputB = try cache(cached |> stepB)
-            return try cache(outputB |> stepC)
-        }
+        let outputOfPipelineAsAny = try _flowOf(
+            input: mostProgressedCachedResult.outputOfLastStep,
+            stepStartIndexFuction: mostProgressedCachedResult.fromStepAtIndex + 1
+        )
 
-        let outputA = try cache(input |> stepA)
-        let outputB = try cache(outputA |> stepB)
-        return try cache(outputB |> stepC)
+        guard let output = outputOfPipelineAsAny as? Output else {
+            incorrectImplementationShouldAlwaysBeAble(to: "Cast last output to Output")
+        }
+        return output
+
     }
 }
