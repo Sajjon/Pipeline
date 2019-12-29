@@ -11,9 +11,9 @@ import XCTest
 final class VanillaTests: XCTestCase {
 
     private lazy var a = A(int: 42)
-    private lazy var b = B(a: a)
-    private lazy var c = C(b: b)
-    private lazy var d = D(c: c)
+    private lazy var b = B(a)
+    private lazy var c = C(b)
+    private lazy var d = D(c)
 
     private let discManager = OnDiscDataManager.temporary()
 
@@ -57,19 +57,46 @@ final class VanillaTests: XCTestCase {
         XCTAssertEqual(cacher.numberOfSavedEntries, 3)
     }
 
-    func testFlowStepACachedStartAtA() throws {
-        let cacher = makeCacher()
-        XCTAssertEqual(cacher.numberOfSavedEntries, 0)
-        try cacher.save(model: b)
-        XCTAssertEqual(cacher.numberOfSavedEntries, 1)
-        try doTest(
-            expectedOutput: d,
-            expectedNumberOfStepsTaken: 2,
-            cacher: cacher,
-            ifCachedResultOfStepAfterStartIsFound: .useCached(overwriteCachedWithNew: false),
-            startAt: 0
-        )
-        XCTAssertEqual(cacher.numberOfSavedEntries, 3)
+
+    func testFlowStepACachedStartAtA() {
+        do {
+            let cacher = makeCacher()
+            XCTAssertEqual(cacher.numberOfSavedEntries, 0)
+            try cacher.save(model: b)
+            XCTAssertEqual(cacher.numberOfSavedEntries, 1)
+            let input: A = .init(int: 5)
+            try doTest(
+                expectedOutput: D(C(B(input))),
+                expectedNumberOfStepsTaken: 3,
+                cacher: cacher,
+                useMostProgressedCachedValueEvenIfStartingAtEarlierStep: false,
+                input: input,
+                startAt: 0
+            )
+            XCTAssertEqual(cacher.numberOfSavedEntries, 3)
+        } catch {
+            XCTFail("error: \(error)")
+        }
+    }
+
+    func testFlowStepACachedStartAtAForceUseCaced() {
+        do {
+            let cacher = makeCacher()
+            XCTAssertEqual(cacher.numberOfSavedEntries, 0)
+            try cacher.save(model: b)
+            XCTAssertEqual(cacher.numberOfSavedEntries, 1)
+            try doTest(
+                expectedOutput: d,
+                expectedNumberOfStepsTaken: 2,
+                cacher: cacher,
+                useMostProgressedCachedValueEvenIfStartingAtEarlierStep: true,
+                input: A(int: 1337),
+                startAt: 0
+            )
+            XCTAssertEqual(cacher.numberOfSavedEntries, 3)
+        } catch {
+            XCTFail("error: \(error)")
+        }
     }
 
     func testFlowStepBCachedStartAtB() throws {
@@ -81,7 +108,7 @@ final class VanillaTests: XCTestCase {
             expectedOutput: d,
             expectedNumberOfStepsTaken: 1,
             cacher: cacher,
-            ifCachedResultOfStepAfterStartIsFound: .useCached(overwriteCachedWithNew: false),
+            input: A(int: 1337),
             startAt: 1
         )
         XCTAssertEqual(cacher.numberOfSavedEntries, 2)
@@ -104,10 +131,10 @@ final class VanillaTests: XCTestCase {
 
     static var allTests = [
         ("testCacher", testCacher),
-        ("testFlowNothingCached", testFlowNothingCached),
-        ("testFlowStepACachedStartAtA", testFlowStepACachedStartAtA),
-        ("testFlowStepBCachedStartAtB", testFlowStepBCachedStartAtB),
-        ("testFlowStepBCachedStartAtA", testFlowStepBCachedStartAtA),
+//        ("testFlowNothingCached", testFlowNothingCached),
+//        ("testFlowStepACachedStartAtA", testFlowStepACachedStartAtA),
+//        ("testFlowStepBCachedStartAtB", testFlowStepBCachedStartAtB),
+//        ("testFlowStepBCachedStartAtA", testFlowStepBCachedStartAtA),
     ]
 }
 
@@ -142,9 +169,8 @@ private extension VanillaTests {
         expectedNumberOfStepsTaken: Int,
 
         cacher: Cacher,
-
-        input: A = .irrelevant,
-        ifCachedResultOfStepAfterStartIsFound: IfCachedResultOfStepAfterStartIsFound = .ignoreCachedAndOverwriteItWithNew,
+        useMostProgressedCachedValueEvenIfStartingAtEarlierStep: Bool = false,
+        input: A,
         startAt maybeStartStepIndex: UInt? = nil,
 
         nameOfFlow: String = #function,
@@ -156,8 +182,8 @@ private extension VanillaTests {
         let output: D = try cachedFlow.flowOf(
             fileName: nameOfFlow,
             input: input,
-            ifCachedResultOfStepAfterStartIsFound: ifCachedResultOfStepAfterStartIsFound,
             startAt: maybeStartStepIndex,
+            useMostProgressedCachedValueEvenIfStartingAtEarlierStep: useMostProgressedCachedValueEvenIfStartingAtEarlierStep,
 
             steps: [
                 AtoB(),
@@ -179,8 +205,4 @@ private extension VanillaTests {
             line: line
         )
     }
-}
-
-extension A {
-    static let irrelevant = Self(int: 1337)
 }
