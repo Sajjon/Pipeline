@@ -8,23 +8,40 @@
 import Foundation
 
 // MARK: Pipeline
-public struct Pipeline<Output>: CustomStringConvertible {
-    public typealias SomeInput = Any
-    public let description: String
-    private let _perform: (SomeInput) throws -> Output
+public struct Pipeline<Input, Output>: CustomStringConvertible where Input: Codable, Output: Codable {
 
-    init<Input>(description: String, perform: @escaping (Input) throws -> Output) {
+    public let description: String
+    private let someStep: SomeStep<Input, Output>
+
+    fileprivate init(description: String, perform: @escaping (Input) throws -> Output) {
         self.description = description
-        self._perform = {
-            let input: Input = castOrKill($0)
-            return try perform(input)
+        self.someStep = SomeStep(name: description, perform: perform)
+    }
+
+    /// Assumes that the steps are indeed pipeable, that is, that the input of step
+    /// `s_0` is of type `Self.Input`, and its output equals `Input` of `s_1`... and that the
+    /// `Output` type of `s_n` equals `Self.Output`
+    fileprivate init(
+        cacher: Cacher = Cacher(onDisc: .temporary()),
+        description: String,
+        steps: [UnsafeStep]
+    ) {
+
+        let workFlow = CacheableWorkFlow<Input, Output>(cacher: cacher)
+
+        self.init(description: description) {
+            return try workFlow.startWorkFlow(
+                named: description,
+                input: $0,
+                steps: steps
+            )
         }
     }
 }
 
 public extension Pipeline {
-    func perform(input: SomeInput) throws -> Output {
-        try _perform(input)
+    func perform(input: Input) throws -> Output {
+        try someStep.perform(input: input)
     }
 }
 
@@ -42,34 +59,53 @@ public extension Pipeline {
         static func buildBlock<StepA, StepB>(
             _ stepA: StepA,
             _ stepB: StepB
-        ) -> Pipeline<StepB.Output> where
+        ) -> Pipeline<StepA.Input, StepB.Output> where
             StepA: Step,
             StepB: Step,
             StepB.Input == StepA.Output
         {
-            Pipeline<StepB.Output>(
-                description: names(of: [stepA, stepB])
-            ) { (inputStepA: StepA.Input) in
-                return try inputStepA |> stepA |> stepB
-            }
+//            Pipeline<StepA.Input, StepB.Output>(
+//                description: names(of: [stepA, stepB])
+//            ) { (inputStepA: StepA.Input) in
+//                return try inputStepA |> stepA |> stepB
+//            }
+
+            var anySteps = [AnyStep]()
+
+            let a = AnyStep(stepA)
+
+            anySteps.append(a)
+
+            let b = a.bind(to: stepB)
+            anySteps.append(b)
+
+            return Pipeline<StepA.Input, StepB.Output>(
+                description: names(of: anySteps),
+                steps: anySteps
+            )
         }
 
         static func buildBlock<StepA, StepB, StepC>(
-            _ stepA: StepA,
-            _ stepB: StepB,
-            _ stepC: StepC
-        ) -> Pipeline<StepC.Output> where
+            _ a: StepA,
+            _ b: StepB,
+            _ c: StepC
+        ) -> Pipeline<StepA.Input, StepC.Output> where
             StepA: Step,
             StepB: Step,
             StepC: Step,
             StepC.Input == StepB.Output,
             StepB.Input == StepA.Output
         {
-            Pipeline<StepC.Output>(
-                description: names(of: [stepA, stepB, stepC])
-            ) { (inputStepA: StepA.Input) in
-                return try inputStepA |> stepA |> stepB |> stepC
-            }
+            let anySteps: [AnyStep] = [
+                AnyStep(a),
+                a ~> b, // b
+                b ~> c // c
+            ]
+
+            return Pipeline<StepA.Input, StepC.Output>(
+                description: names(of: anySteps),
+                steps: anySteps
+            )
         }
     }
 }
@@ -82,13 +118,39 @@ precedencegroup Pipe {
 
 infix operator |>: Pipe
 
-func |> <SomeStep>(input: SomeStep.Input, step: SomeStep)
-    throws -> SomeStep.Output
+infix operator ~>: Pipe
+
+//func |> <Input, S>(input: Input, step: S) throws -> SomeStep<Input, S.Output>
+//    where
+//    S: Step,
+//S.Input == Input
+//{
+//    SomeStep<S.Input, S.Output>(name: step.name, perform: step.perform(input:))
+//}
+
+func |> <LastStep, NextStep>(lastStep: LastStep, nextStep: NextStep) throws -> SomeStep<LastStep.Input, NextStep.Output>
     where
-    SomeStep: Step
+    LastStep: Step,
+    NextStep: Step,
+    NextStep.Input == LastStep.Output
 {
-    try step.perform(input: input)
+    SomeStep<LastStep.Input, NextStep.Output>(
+        name: names(of: [lastStep, nextStep])
+    ) { (inputForLastStep: LastStep.Input) throws -> NextStep.Output in
+        let inputForNext = try lastStep.perform(input: inputForLastStep)
+        return try nextStep.perform(input: inputForNext)
+    }
 }
+
+func ~> <LastStep, NextStep>(lastStep: LastStep, nextStep: NextStep) -> AnyStep
+    where
+    LastStep: Step,
+    NextStep: Step,
+    NextStep.Input == LastStep.Output
+{
+    AnyStep(lastStep).bind(to: nextStep)
+}
+
 
 func names(of nameOwners: [Named], separator: String = " -> ") -> String {
     nameOwners.map { $0.name }.joined(separator: separator)

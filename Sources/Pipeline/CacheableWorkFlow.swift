@@ -7,38 +7,24 @@
 
 import Foundation
 
-enum StartStep: Int, Equatable, Comparable {
-    case stepA = 0, stepB, stepC, stepD, stepE, stepF, stepG, stepH, stepI, stepJ
-}
-
-extension StartStep {
-    static func < (lhs: Self, rhs: Self) -> Bool {
-        lhs.rawValue < rhs.rawValue
-    }
-}
-
-extension Int {
-    init?<Integer>(_ maybeInteger: Integer?) where Integer: FixedWidthInteger {
-        guard let integer = maybeInteger else { return nil }
-        self.init(integer)
-    }
-}
-
-
-final class CachedFlow<Input, Output> {
+public final class CacheableWorkFlow<Input, Output> {
 
     private let cacher: Cacher
     internal private(set) var numberOfStepsHavingPerformedWork = 0
 
-    init(cacher: Cacher) {
+    public init(cacher: Cacher) {
         self.cacher = cacher
     }
+}
 
-    func flowOf(
-        fileName: String,
+// MARK: Public
+public extension CacheableWorkFlow {
+
+    func startWorkFlow(
+        named nameOfWorkFlow: String,
+        startAtStep maybeStartStepIndex: UInt? = nil,
+        useMostProgressedCachedValueEvenIfStartingAtEarlierStep: Bool = false,
         input: Input,
-        startAt maybeStartStepIndex: UInt? = nil,
-        useMostProgressedCachedValueEvenIfStartingAtEarlierStep: Bool,
         steps: [UnsafeStep]
     ) throws -> Output {
 
@@ -48,32 +34,47 @@ final class CachedFlow<Input, Output> {
 
         guard
             stepIndex == (steps.endIndex - 1),
-            let lastStep = steps.last,
-            let cachedAnyFromLast = lastStep.loadCached(from: cacher, fileName: fileName)
+            let lastStep = steps.last
+//            , let cachedAnyFromLast = lastStep.loadCached(from: cacher, fileName: nameOfWorkFlow)
         else {
-            return try __innerFlowOf(
-                fileName: fileName,
-                input: input,
+            return try doPerform(
+                steps: steps,
                 startAt: stepIndex,
                 useMostProgressedCachedValueEvenIfStartingAtEarlierStep: useMostProgressedCachedValueEvenIfStartingAtEarlierStep,
-                steps: steps
+                inputForFirstStep: input,
+                nameOfWorkFlow: nameOfWorkFlow
             )
         }
+        let cachedAnyFromLast = "APA"
+        fatalError()
 
         // MARK: - Lucky corner case, got cached last
-        return castOrKill(cachedAnyFromLast, to: Output.self)
+        guard let output = cachedAnyFromLast as? Output else {
+            throw UnsafeStepError.cannotPerform(
+                step: lastStep.name,
+                withInput: cachedAnyFromLast,
+                ofType: typeName(of: cachedAnyFromLast),
+                expectedInputType: typeName(of: Output.self)
+            )
+        }
+        return output
     }
+}
 
-    func __innerFlowOf(
-        fileName: String,
-        input outerInput: Input,
+// MARK: Private
+private extension CacheableWorkFlow {
+
+    func doPerform(
+        steps: [UnsafeStep],
         startAt indexOfStartStep: Int,
         useMostProgressedCachedValueEvenIfStartingAtEarlierStep: Bool,
-        steps: [UnsafeStep]
+        inputForFirstStep outerInput: Input,
+        nameOfWorkFlow: String
     ) throws -> Output {
 
         numberOfStepsHavingPerformedWork = 0
 
+        // MARK: Helper methods
         func loadFromCacheElseMakeNewAndCacheAny(
             performingStepNamed: String,
             shouldLoadFromCache: Bool,
@@ -98,11 +99,13 @@ final class CachedFlow<Input, Output> {
         }
 
         func load(fromStep unsafeStep: UnsafeStep) -> Any? {
-            unsafeStep.loadCached(from: cacher, fileName: fileName)
+//            unsafeStep.loadCached(from: cacher, fileName: nameOfWorkFlow)
+            fatalError()
         }
 
         func save(any: Any, forStep unsafeStep: UnsafeStep) throws {
-            try unsafeStep.cache(any, in: cacher, fileName: fileName)
+//            try unsafeStep.cache(any, in: cacher, fileName: nameOfWorkFlow)
+            fatalError()
         }
 
         func perform(anyInput: Any, step unsafeStep: UnsafeStep) throws -> Any {
@@ -123,6 +126,7 @@ final class CachedFlow<Input, Output> {
             )
         }
 
+        // MARK: Recursion
         func recursivelyPerformStep(
             at stepIndex: Int,
             shouldLoadFromCache: Bool,
@@ -149,12 +153,14 @@ final class CachedFlow<Input, Output> {
             )
         }
 
+
+        // MARK: Start arguments
+
         /// Finds the most progressed cached result starting at `indexOfStartStep`, and going back to the first step at index 0.
         func findMostProgressedResultFromStep(_ indexOfStartStep: Int) -> (mostProgressResult: Any, startAtIndex: Int)? {
             var indexOfStep = indexOfStartStep
             repeat {
                 defer { indexOfStep -= 1}
-                print("⭐️accessing step at index: \(indexOfStep)")
                 guard let mostProgressedCachedResult = load(fromStep: steps[indexOfStep]) else { continue }
                 return (mostProgressedCachedResult, indexOfStep)
             } while indexOfStep > 0
@@ -175,15 +181,23 @@ final class CachedFlow<Input, Output> {
 
         print("🦦 starting pipeline at step: `\(steps[nextIndex].name)` at index: \(nextIndex), with input: <\(mostProgressResult)>")
 
+        // MARK: Start recursion
         let outputOfPipelineAsAny = try recursivelyPerformStep(
             at: nextIndex,
             shouldLoadFromCache: (nextIndex > 0 || useMostProgressedCachedValueEvenIfStartingAtEarlierStep),
             input: mostProgressResult
         )
 
+
         guard let output = outputOfPipelineAsAny as? Output else {
-            incorrectImplementationShouldAlwaysBeAble(to: "Cast last output to Output")
+            throw UnsafeStepError.cannotPerform(
+                step: steps.last!.name,
+                withInput: outputOfPipelineAsAny,
+                ofType: typeName(of: outputOfPipelineAsAny),
+                expectedInputType: typeName(of: Output.self)
+            )
         }
+
         return output
 
     }

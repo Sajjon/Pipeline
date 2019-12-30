@@ -176,14 +176,14 @@ private extension VanillaTests {
         nameOfFlow: String = #function,
         line: UInt = #line
     ) throws {
-        let cachedFlow = CachedFlow<A, D>(cacher: cacher)
+        let cachedFlow = CacheableWorkFlow<A, D>(cacher: cacher)
 
 
-        let output: D = try cachedFlow.flowOf(
-            fileName: nameOfFlow,
-            input: input,
-            startAt: maybeStartStepIndex,
+        let output: D = try cachedFlow.startWorkFlow(
+            named: nameOfFlow,
+            startAtStep: maybeStartStepIndex,
             useMostProgressedCachedValueEvenIfStartingAtEarlierStep: useMostProgressedCachedValueEvenIfStartingAtEarlierStep,
+            input: input,
 
             steps: [
                 AtoB(),

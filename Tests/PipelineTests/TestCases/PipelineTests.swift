@@ -5,7 +5,7 @@ final class PipelineTests: XCTestCase {
 
     func testTwoSteps() throws {
 
-        let pipeline = Pipeline<C> {
+        let pipeline = Pipeline<A, C> {
             AtoB()
             BtoC()
         }
@@ -16,7 +16,7 @@ final class PipelineTests: XCTestCase {
 
     func testThreeSteps() throws {
 
-        let pipeline = Pipeline<D> {
+        let pipeline = Pipeline<A, D> {
             AtoB()
             BtoC()
             CtoD()
