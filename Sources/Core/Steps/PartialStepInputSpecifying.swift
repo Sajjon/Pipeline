@@ -37,31 +37,9 @@ public struct PartialStepInputSpecifying<Input>: PartialUnsafeStepInputSpecifyin
     }
 }
 
-// MARK: Init
-//public extension PartialStepInputSpecifying {
-//    init<S>(_ step: S)
-//        where
-//        S: Step,
-//        S.Input == Input
-//        //        S.Output == Output
-//    {
-//        self.init(name: step.name) { (input: S.Input) in
-//            try step.perform(input: input)
-//        }
-//    }
-//}
-
 // MARK: PartialUnsafeStepInputSpecifying
 public extension PartialStepInputSpecifying {
     func partialUnsafePerform(input: Input) throws -> Any {
         try _perform(input)
-    }
-
-    func loadCached(from cacher: Cacher, fileName: String) -> Any? {
-        fatalError()
-    }
-
-    func cache(_ any: Any, in cacher: Cacher, fileName: String) throws {
-        fatalError()
     }
 }

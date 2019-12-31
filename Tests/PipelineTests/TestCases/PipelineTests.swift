@@ -1,5 +1,6 @@
 import XCTest
 @testable import Pipeline
+@testable import Core
 
 final class PipelineTests: XCTestCase {
 

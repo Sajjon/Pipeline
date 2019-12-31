@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import Core
 
 // MARK: Pipeline
 public struct Pipeline<Input, Output>: CustomStringConvertible {
@@ -17,18 +18,21 @@ public struct Pipeline<Input, Output>: CustomStringConvertible {
         self.description = description
         self._perform = perform
     }
+}
 
+// MARK: Init
+private extension Pipeline {
     /// Assumes that the steps are indeed pipeable, that is, that the input of step
     /// `s_0` is of type `Self.Input`, and its output equals `Input` of `s_1`... and that the
     /// `Output` type of `s_n` equals `Self.Output`
-    fileprivate init(
+    init(
         cacher: Cacher = Cacher(onDisc: .temporary()),
         description: String,
         steps: [UnsafeStep]
     ) {
         
         let workFlow = CacheableWorkFlow<Input, Output>(cacher: cacher)
-
+        
         self.init(description: description) {
             return try workFlow.startWorkFlow(
                 named: description,
@@ -36,6 +40,20 @@ public struct Pipeline<Input, Output>: CustomStringConvertible {
                 steps: steps
             )
         }
+    }
+    
+    init(
+        cacher: Cacher = Cacher(onDisc: .temporary()),
+        _ stepLinker: StepLinker
+    ) {
+        
+        let anySteps = stepLinker.steps
+        
+        self.init(
+            cacher: cacher,
+            description: names(of: anySteps),
+            steps: anySteps
+        )
     }
 }
 
@@ -57,23 +75,18 @@ public extension Pipeline {
     struct Builder {
 
         static func buildBlock<StepA, StepB>(
-            _ stepA: StepA,
-            _ stepB: StepB
+            _ a: StepA,
+            _ b: StepB
         ) -> Pipeline<StepA.Input, StepB.Output> where
             StepA: Step,
             StepB: Step,
             StepB.Input == StepA.Output
         {
-            var anySteps = [AnyStep]()
-            let a = AnyStep(stepA)
-            anySteps.append(a)
-
-            let b = a.bind(to: stepB)
-            anySteps.append(b)
-
-            return Pipeline<StepA.Input, StepB.Output>(
-                description: names(of: anySteps),
-                steps: anySteps
+            Pipeline<StepA.Input, StepB.Output>(
+                StepLinker {
+                    a
+                    b
+                }
             )
         }
 
@@ -88,39 +101,16 @@ public extension Pipeline {
             StepC.Input == StepB.Output,
             StepB.Input == StepA.Output
         {
-            let anySteps: [AnyStep] = [
-                AnyStep.init(a),
-                a ~> b, // b
-                b ~> c // c
-            ]
-
-            return Pipeline<StepA.Input, StepC.Output>(
-                description: names(of: anySteps),
-                steps: anySteps
+            Pipeline<StepA.Input, StepC.Output>(
+                StepLinker {
+                    a
+                    b
+                    c
+                }
             )
         }
     }
 }
-// MARK: Operator
-precedencegroup Pipe {
-    higherThan: NilCoalescingPrecedence
-    associativity: left
-    assignment: true
-}
-
-//infix operator |>: Pipe
-
-infix operator ~>: Pipe
-
-func ~> <LastStep, NextStep>(lastStep: LastStep, nextStep: NextStep) -> AnyStep
-    where
-    LastStep: Step,
-    NextStep: Step,
-    NextStep.Input == LastStep.Output
-{
-    AnyStep(lastStep).bind(to: nextStep)
-}
-
 
 func names(of steps: [UnsafeStep], separator: String = " -> ") -> String {
     steps.map { $0.name }.joined(separator: separator)
