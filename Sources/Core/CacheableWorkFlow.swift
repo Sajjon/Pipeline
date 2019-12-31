@@ -25,7 +25,7 @@ public extension CacheableWorkFlow {
         startAtStep maybeStartStepIndex: UInt? = nil,
         useMostProgressedCachedValueEvenIfStartingAtEarlierStep: Bool = false,
         input: Input,
-        steps: [UnsafeStep]
+        steps: [__built_in_UnsafeStep]
     ) throws -> Output {
 
         let stepIndex = Int(maybeStartStepIndex) ?? (steps.endIndex - 1)
@@ -54,7 +54,7 @@ public extension CacheableWorkFlow {
 private extension CacheableWorkFlow {
 
     func doPerform(
-        steps: [UnsafeStep],
+        steps: [__built_in_UnsafeStep],
         startAt indexOfStartStep: Int,
         useMostProgressedCachedValueEvenIfStartingAtEarlierStep: Bool,
         inputForFirstStep outerInput: Input,
@@ -87,14 +87,14 @@ private extension CacheableWorkFlow {
             }
         }
     
-        func perform(anyInput: Any, step unsafeStep: UnsafeStep) throws -> Any {
+        func perform(anyInput: Any, step unsafeStep: __built_in_UnsafeStep) throws -> Any {
             try unsafeStep.unsafePerform(anyInput: anyInput)
         }
 
         func loadFromCacheElseMakeNewAndCacheFromUnsafeStep(
             anyInput: Any,
             shouldLoadFromCache: Bool,
-            unsafeStep: UnsafeStep
+            unsafeStep: __built_in_UnsafeStep
         ) throws -> Any {
             try loadFromCacheElseMakeNewAndCacheAny(
                 performingStepNamed: unsafeStep.name,

@@ -9,7 +9,8 @@ import Foundation
 import Core
 
 // MARK: Step
-public protocol Step: PartialUnsafeStepInputSpecifying {
+public protocol Step: __built_in_InputSpecifyingStep {
+    associatedtype Input
     associatedtype Output
     func perform(input: Input) throws -> Output
 }

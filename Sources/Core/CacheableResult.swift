@@ -15,13 +15,13 @@ public protocol CacheableResult {
 // MARK: Codable + Default
 extension Encodable where Self: CacheableResult {
 
-    func cache(in cacher: Cacher, fileName: String) throws {
+    public func cache(in cacher: Cacher, fileName: String) throws {
         try cacher.save(model: self, fileName: fileName)
     }
 }
 
 extension Decodable where Self: CacheableResult {
-    static func loadCached(from cacher: Cacher, fileName: String) -> Any? {
+    public static func loadCached(from cacher: Cacher, fileName: String) -> Any? {
         try? cacher.load(modelType: self, fileName: fileName)
     }
 }

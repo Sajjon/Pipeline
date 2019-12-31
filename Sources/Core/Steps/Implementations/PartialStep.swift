@@ -7,10 +7,10 @@
 
 import Foundation
 
-// MARK: PartialStepInputSpecifying
+// MARK: PartialStep
 
 /// A *partially* type-erased `step` specifying expected `Input`, but not `Output` type.
-public struct PartialStepInputSpecifying<Input>: PartialUnsafeStepInputSpecifying {
+public struct PartialStep<Input>: __built_in_InputSpecifyingStep {
 
 
     public let name: String
@@ -27,7 +27,7 @@ public struct PartialStepInputSpecifying<Input>: PartialUnsafeStepInputSpecifyin
         self._perform = perform
     }
 
-    public init(unsafeStep: UnsafeStep) {
+    public init(unsafeStep: __built_in_UnsafeStep) {
         self.init(
             name: unsafeStep.name,
             cacheableResultType: unsafeStep.cacheableResultTypeIfAny
@@ -37,8 +37,8 @@ public struct PartialStepInputSpecifying<Input>: PartialUnsafeStepInputSpecifyin
     }
 }
 
-// MARK: PartialUnsafeStepInputSpecifying
-public extension PartialStepInputSpecifying {
+// MARK: __built_in_InputSpecifyingStep
+public extension PartialStep {
     func partialUnsafePerform(input: Input) throws -> Any {
         try _perform(input)
     }

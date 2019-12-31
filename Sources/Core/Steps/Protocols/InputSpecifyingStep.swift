@@ -7,12 +7,12 @@
 
 import Foundation
 
-public protocol PartialUnsafeStepInputSpecifying: UnsafeStep {
+public protocol __built_in_InputSpecifyingStep: __built_in_UnsafeStep {
     associatedtype Input
     func partialUnsafePerform(input: Input) throws -> Any
 }
 
-public extension PartialUnsafeStepInputSpecifying {
+public extension __built_in_InputSpecifyingStep {
     func unsafePerform(anyInput: Any) throws -> Any {
         guard let input = anyInput as? Input else {
             throw UnsafeStepError.cannotPerform(

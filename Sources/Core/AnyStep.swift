@@ -8,14 +8,14 @@
 import Foundation
 
 // MARK: AnyStep
-public struct AnyStep: UnsafeStep {
+public struct AnyStep: __built_in_UnsafeStep {
 
     public let name: String
     private let _unsafePerform: (Any) throws -> Any
 
      public let cacheableResultTypeIfAny: CacheableResult.Type
     
-    private let _unsafeNonTypeCheckedLetOutputOfSelfBeInputForOtherNextStep: (_ otherNextStepHavingInputSameAsSelfOutput: UnsafeStep) -> AnyStep
+    private let _unsafeNonTypeCheckedLetOutputOfSelfBeInputForOtherNextStep: (_ otherNextStepHavingInputSameAsSelfOutput: __built_in_UnsafeStep) -> AnyStep
 
     public init<Input, Output>(name: String, cacheableResultType: CacheableResult.Type, perform: @escaping (Input) throws -> Output) {
         self.cacheableResultTypeIfAny = cacheableResultType
@@ -26,8 +26,8 @@ public struct AnyStep: UnsafeStep {
             }
             return try perform(input)
         }
-        self._unsafeNonTypeCheckedLetOutputOfSelfBeInputForOtherNextStep = { (otherNextStepHavingInputSameAsSelfOutput: UnsafeStep) in
-            let partialStep = PartialStepInputSpecifying<Output>(unsafeStep: otherNextStepHavingInputSameAsSelfOutput)
+        self._unsafeNonTypeCheckedLetOutputOfSelfBeInputForOtherNextStep = { (otherNextStepHavingInputSameAsSelfOutput: __built_in_UnsafeStep) in
+            let partialStep = PartialStep<Output>(unsafeStep: otherNextStepHavingInputSameAsSelfOutput)
             return AnyStep(partialStep)
         }
     }
@@ -35,7 +35,7 @@ public struct AnyStep: UnsafeStep {
 
 // MARK: Public
 public extension AnyStep {
-    func bind(to unsafeNextStep: UnsafeStep) -> AnyStep {
+    func bind(to unsafeNextStep: __built_in_UnsafeStep) -> AnyStep {
         _unsafeNonTypeCheckedLetOutputOfSelfBeInputForOtherNextStep(unsafeNextStep)
     }
 }
@@ -43,7 +43,7 @@ public extension AnyStep {
 // MARK: Init
 public extension AnyStep {
 
-    init<PS>(_ partial: PS) where PS: PartialUnsafeStepInputSpecifying {
+    init<PS>(_ partial: PS) where PS: __built_in_InputSpecifyingStep {
         self.init(
             name: partial.name,
             cacheableResultType: partial.cacheableResultTypeIfAny
@@ -53,7 +53,7 @@ public extension AnyStep {
     }
 }
 
-// MARK: UnsafeStep
+// MARK: __built_in_UnsafeStep
 public extension AnyStep {
     func unsafePerform(anyInput: Any) throws -> Any {
         try _unsafePerform(anyInput)

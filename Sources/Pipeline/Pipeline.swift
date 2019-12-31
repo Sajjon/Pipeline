@@ -28,7 +28,7 @@ private extension Pipeline {
     init(
         cacher: Cacher = Cacher(onDisc: .temporary()),
         description: String,
-        steps: [UnsafeStep]
+        steps: [AnyStep]
     ) {
         
         let workFlow = CacheableWorkFlow<Input, Output>(cacher: cacher)
@@ -199,6 +199,6 @@ public extension Pipeline.Builder {
     }
 }
 
-func names(of steps: [UnsafeStep], separator: String = " -> ") -> String {
+func names(of steps: [__built_in_UnsafeStep], separator: String = " -> ") -> String {
     steps.map { $0.name }.joined(separator: separator)
 }

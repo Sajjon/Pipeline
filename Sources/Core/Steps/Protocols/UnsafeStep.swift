@@ -7,14 +7,14 @@
 
 import Foundation
 
-// MARK: UnsafeStep
-public protocol UnsafeStep {
+// MARK: __built_in_UnsafeStep
+public protocol __built_in_UnsafeStep {
     var name: String { get }
     func unsafePerform(anyInput: Any) throws -> Any
     var cacheableResultTypeIfAny: CacheableResult.Type { get }
 }
 
-public extension UnsafeStep {
+public extension __built_in_UnsafeStep {
     var name: String { typeName(of: self) }
 }
 
