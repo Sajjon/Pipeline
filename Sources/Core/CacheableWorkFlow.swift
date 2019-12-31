@@ -25,7 +25,7 @@ public extension CacheableWorkFlow {
         startAtStep maybeStartStepIndex: UInt? = nil,
         useMostProgressedCachedValueEvenIfStartingAtEarlierStep: Bool = false,
         input: Input,
-        steps: [__built_in_UnsafeStep]
+        steps: [AnyStep]
     ) throws -> Output {
 
         let stepIndex = Int(maybeStartStepIndex) ?? (steps.endIndex - 1)

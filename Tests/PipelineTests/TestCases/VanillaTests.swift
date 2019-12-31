@@ -180,6 +180,12 @@ private extension VanillaTests {
     ) throws {
         let cachedFlow = CacheableWorkFlow<A, D>(cacher: cacher)
 
+        let stepA = AtoB()
+        let stepB = BtoC()
+        let stepC = CtoD()
+        let linker = StepLinker(stepA)
+        linker.link(stepB)
+        linker.link(stepC)
 
         let output: D = try cachedFlow.startWorkFlow(
             named: nameOfFlow,
@@ -187,11 +193,7 @@ private extension VanillaTests {
             useMostProgressedCachedValueEvenIfStartingAtEarlierStep: useMostProgressedCachedValueEvenIfStartingAtEarlierStep,
             input: input,
 
-            steps: [
-                AtoB(),
-                BtoC(),
-                CtoD()
-            ]
+            steps: linker.steps
         )
 
         XCTAssertEqual(
