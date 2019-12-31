@@ -10,10 +10,10 @@ import Core
 
 // MARK: Pipeline
 public struct Pipeline<Input, Output>: CustomStringConvertible {
-
+    
     public let description: String
     private let _perform: (Input) throws -> Output
-
+    
     fileprivate init(description: String, perform: @escaping (Input) throws -> Output) {
         self.description = description
         self._perform = perform
@@ -44,7 +44,7 @@ private extension Pipeline {
     
     init(
         cacher: Cacher = Cacher(onDisc: .temporary()),
-        _ stepLinker: StepLinker
+        stepLinker: StepLinker
     ) {
         
         let anySteps = stepLinker.steps
@@ -72,43 +72,130 @@ public extension Pipeline {
 // MARK: Builder
 public extension Pipeline {
     @_functionBuilder
-    struct Builder {
+    struct Builder {}
+}
 
-        static func buildBlock<StepA, StepB>(
-            _ a: StepA,
-            _ b: StepB
-        ) -> Pipeline<StepA.Input, StepB.Output> where
-            StepA: Step,
-            StepB: Step,
-            StepB.Input == StepA.Output
-        {
-            Pipeline<StepA.Input, StepB.Output>(
-                StepLinker {
-                    a
-                    b
-                }
-            )
-        }
+public extension Pipeline.Builder {
+    
+    // MARK: 2 Steps
+    static func buildBlock<Input, Output, A, B>(
+        _ a: A,
+        _ b: B
+    ) -> Pipeline<Input, Output>
+        
+        where
+        
+        A: Step,
+        B: Step,
+        
+        A.Output == B.Input,
+        
+        Input == A.Input,
+        Output == B.Output
+    {
+        let linker = StepLinker(a)
+        linker.link(b)
+        
+        return Pipeline<A.Input, B.Output>(
+            stepLinker: linker
+        )
+    }
+    
+    // MARK: 3 Steps
+    static func buildBlock<Input, Output, A, B, C>(
+        _ a: A,
+        _ b: B,
+        _ c: C
+    ) -> Pipeline<Input, Output>
+        
+        where
+        
+        A: Step,
+        B: Step,
+        C: Step,
+        
+        A.Output == B.Input,
+        B.Output == C.Input,
+        
+        Input == A.Input,
+        Output == C.Output
+    {
+        let linker = StepLinker(a)
+        linker.link(b)
+        linker.link(c)
+        
+        return Pipeline<A.Input, C.Output>(
+            stepLinker: linker
+        )
+    }
+    
+    // MARK: 4 Steps
+    static func buildBlock<Input, Output, A, B, C, D>(
+        _ a: A,
+        _ b: B,
+        _ c: C,
+        _ d: D
+    ) -> Pipeline<Input, Output>
 
-        static func buildBlock<StepA, StepB, StepC>(
-            _ a: StepA,
-            _ b: StepB,
-            _ c: StepC
-        ) -> Pipeline<StepA.Input, StepC.Output> where
-            StepA: Step,
-            StepB: Step,
-            StepC: Step,
-            StepC.Input == StepB.Output,
-            StepB.Input == StepA.Output
-        {
-            Pipeline<StepA.Input, StepC.Output>(
-                StepLinker {
-                    a
-                    b
-                    c
-                }
-            )
-        }
+        where
+        
+        A: Step,
+        B: Step,
+        C: Step,
+        D: Step,
+        
+        A.Output == B.Input,
+        B.Output == C.Input,
+        C.Output == D.Input,
+        
+        Input == A.Input,
+        Output == D.Output
+    {
+        
+        let linker = StepLinker(a)
+        linker.link(b)
+        linker.link(c)
+        linker.link(d)
+        
+        return Pipeline<Input, Output>(
+            stepLinker: linker
+        )
+    }
+    
+    // MARK: 5 Steps
+    static func buildBlock<Input, Output, A, B, C, D, E>(
+        _ a: A,
+        _ b: B,
+        _ c: C,
+        _ d: D,
+        _ e: E
+    ) -> Pipeline<Input, Output>
+        
+        where
+        
+        A: Step,
+        B: Step,
+        C: Step,
+        D: Step,
+        E: Step,
+        
+        A.Output == B.Input,
+        B.Output == C.Input,
+        C.Output == D.Input,
+        D.Output == E.Input,
+        
+        Input == A.Input,
+        Output == E.Output
+    {
+        let linker = StepLinker(a)
+        linker.link(b)
+        linker.link(c)
+        linker.link(d)
+        linker.link(e)
+       
+        return Pipeline<Input, Output>(
+            stepLinker: linker
+        )
     }
 }
 
