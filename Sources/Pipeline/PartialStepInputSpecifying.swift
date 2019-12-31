@@ -14,16 +14,23 @@ public struct PartialStepInputSpecifying<Input>: PartialUnsafeStepInputSpecifyin
 
 
     public let name: String
+    public let cacheableResultTypeIfAny: CacheableResult.Type
     private let _perform: (_ input: Input) throws -> Any
-
-    public init(name: String, perform: @escaping (Input) throws -> Any) {
+    
+    fileprivate init(
+        name: String,
+        cacheableResultType: CacheableResult.Type,
+        perform: @escaping (Input) throws -> Any
+    ) {
         self.name = name
+        self.cacheableResultTypeIfAny = cacheableResultType
         self._perform = perform
     }
 
     public init(unsafeStep: UnsafeStep) {
         self.init(
-            name: unsafeStep.name
+            name: unsafeStep.name,
+            cacheableResultType: unsafeStep.cacheableResultTypeIfAny
         ) {
             try unsafeStep.unsafePerform(anyInput: $0)
         }
@@ -31,18 +38,18 @@ public struct PartialStepInputSpecifying<Input>: PartialUnsafeStepInputSpecifyin
 }
 
 // MARK: Init
-public extension PartialStepInputSpecifying {
-    init<S>(_ step: S)
-        where
-        S: Step,
-        S.Input == Input
-        //        S.Output == Output
-    {
-        self.init(name: step.name) { (input: S.Input) in
-            try step.perform(input: input)
-        }
-    }
-}
+//public extension PartialStepInputSpecifying {
+//    init<S>(_ step: S)
+//        where
+//        S: Step,
+//        S.Input == Input
+//        //        S.Output == Output
+//    {
+//        self.init(name: step.name) { (input: S.Input) in
+//            try step.perform(input: input)
+//        }
+//    }
+//}
 
 // MARK: PartialUnsafeStepInputSpecifying
 public extension PartialStepInputSpecifying {

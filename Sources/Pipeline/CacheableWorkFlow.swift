@@ -34,8 +34,7 @@ public extension CacheableWorkFlow {
 
         guard
             stepIndex == (steps.endIndex - 1),
-            let lastStep = steps.last
-//            , let cachedAnyFromLast = lastStep.loadCached(from: cacher, fileName: nameOfWorkFlow)
+            let output: Output = load(from: cacher, fileName: nameOfWorkFlow)
         else {
             return try doPerform(
                 steps: steps,
@@ -45,18 +44,8 @@ public extension CacheableWorkFlow {
                 nameOfWorkFlow: nameOfWorkFlow
             )
         }
-        let cachedAnyFromLast = "APA"
-        fatalError()
 
         // MARK: - Lucky corner case, got cached last
-        guard let output = cachedAnyFromLast as? Output else {
-            throw UnsafeStepError.cannotPerform(
-                step: lastStep.name,
-                withInput: cachedAnyFromLast,
-                ofType: typeName(of: cachedAnyFromLast),
-                expectedInputType: typeName(of: Output.self)
-            )
-        }
         return output
     }
 }
@@ -97,17 +86,7 @@ private extension CacheableWorkFlow {
                 return try makeAndCache()
             }
         }
-
-        func load(fromStep unsafeStep: UnsafeStep) -> Any? {
-//            unsafeStep.loadCached(from: cacher, fileName: nameOfWorkFlow)
-            fatalError()
-        }
-
-        func save(any: Any, forStep unsafeStep: UnsafeStep) throws {
-//            try unsafeStep.cache(any, in: cacher, fileName: nameOfWorkFlow)
-            fatalError()
-        }
-
+    
         func perform(anyInput: Any, step unsafeStep: UnsafeStep) throws -> Any {
             try unsafeStep.unsafePerform(anyInput: anyInput)
         }
@@ -120,9 +99,13 @@ private extension CacheableWorkFlow {
             try loadFromCacheElseMakeNewAndCacheAny(
                 performingStepNamed: unsafeStep.name,
                 shouldLoadFromCache: shouldLoadFromCache,
-                loadFromCache: { load(fromStep: unsafeStep) },
+                
+                loadFromCache: {
+                    unsafeStep.cacheableResultTypeIfAny.loadCached(from: cacher, fileName: nameOfWorkFlow)
+                },
+                
                 makeOutput: { try perform(anyInput: anyInput, step: unsafeStep) },
-                cacheOutput: { try save(any: $0, forStep: unsafeStep) }
+                cacheOutput: { try cache($0, in: cacher, fileName: nameOfWorkFlow) }
             )
         }
 
@@ -161,7 +144,9 @@ private extension CacheableWorkFlow {
             var indexOfStep = indexOfStartStep
             repeat {
                 defer { indexOfStep -= 1}
-                guard let mostProgressedCachedResult = load(fromStep: steps[indexOfStep]) else { continue }
+                let unsafeStep = steps[indexOfStep]
+                guard let mostProgressedCachedResult = unsafeStep.cacheableResultTypeIfAny.loadCached(from: cacher, fileName: nameOfWorkFlow) else { continue }
+                
                 return (mostProgressedCachedResult, indexOfStep)
             } while indexOfStep > 0
             return nil

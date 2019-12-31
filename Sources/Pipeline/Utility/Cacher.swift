@@ -58,7 +58,7 @@ enum CacheSaveError: Swift.Error {
 
 // MARK: Save
 public extension Cacher {
-    func save<Model>(model: Model, fileName baseFileName: String) throws where Model: Codable {
+    func save<Model>(model: Model, fileName baseFileName: String) throws where Model: Encodable {
         let fileName = baseFileName + typeName(of: Model.self)
         let data: Data
         do {
@@ -85,7 +85,7 @@ public extension Cacher {
 
 // MARK: Load
 public extension Cacher {
-    func load<Model>(modelType _: Model.Type, fileName baseFileName: String) throws -> Model where Model: Codable {
+    func load<Model>(modelType _: Model.Type, fileName baseFileName: String) throws -> Model where Model: Decodable {
         let fileName = baseFileName + typeName(of: Model.self)
         let data = try loadData(fileName: fileName)
         do {
@@ -95,7 +95,7 @@ public extension Cacher {
         } catch { unexpectedlyCaughtError(error) }
     }
 
-    func load<Model>(fileName: String) throws -> Model where Model: Codable {
+    func load<Model>(fileName: String) throws -> Model where Model: Decodable {
         try load(modelType: Model.self, fileName: fileName)
     }
 }

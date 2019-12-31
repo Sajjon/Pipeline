@@ -8,14 +8,14 @@
 import Foundation
 
 // MARK: Pipeline
-public struct Pipeline<Input, Output>: CustomStringConvertible where Input: Codable, Output: Codable {
+public struct Pipeline<Input, Output>: CustomStringConvertible {
 
     public let description: String
-    private let someStep: SomeStep<Input, Output>
+    private let _perform: (Input) throws -> Output
 
     fileprivate init(description: String, perform: @escaping (Input) throws -> Output) {
         self.description = description
-        self.someStep = SomeStep(name: description, perform: perform)
+        self._perform = perform
     }
 
     /// Assumes that the steps are indeed pipeable, that is, that the input of step
@@ -26,7 +26,7 @@ public struct Pipeline<Input, Output>: CustomStringConvertible where Input: Coda
         description: String,
         steps: [UnsafeStep]
     ) {
-
+        
         let workFlow = CacheableWorkFlow<Input, Output>(cacher: cacher)
 
         self.init(description: description) {
@@ -41,7 +41,7 @@ public struct Pipeline<Input, Output>: CustomStringConvertible where Input: Coda
 
 public extension Pipeline {
     func perform(input: Input) throws -> Output {
-        try someStep.perform(input: input)
+        try _perform(input)
     }
 }
 
@@ -64,16 +64,8 @@ public extension Pipeline {
             StepB: Step,
             StepB.Input == StepA.Output
         {
-//            Pipeline<StepA.Input, StepB.Output>(
-//                description: names(of: [stepA, stepB])
-//            ) { (inputStepA: StepA.Input) in
-//                return try inputStepA |> stepA |> stepB
-//            }
-
             var anySteps = [AnyStep]()
-
             let a = AnyStep(stepA)
-
             anySteps.append(a)
 
             let b = a.bind(to: stepB)
@@ -97,7 +89,7 @@ public extension Pipeline {
             StepB.Input == StepA.Output
         {
             let anySteps: [AnyStep] = [
-                AnyStep(a),
+                AnyStep.init(a),
                 a ~> b, // b
                 b ~> c // c
             ]
@@ -116,31 +108,9 @@ precedencegroup Pipe {
     assignment: true
 }
 
-infix operator |>: Pipe
+//infix operator |>: Pipe
 
 infix operator ~>: Pipe
-
-//func |> <Input, S>(input: Input, step: S) throws -> SomeStep<Input, S.Output>
-//    where
-//    S: Step,
-//S.Input == Input
-//{
-//    SomeStep<S.Input, S.Output>(name: step.name, perform: step.perform(input:))
-//}
-
-func |> <LastStep, NextStep>(lastStep: LastStep, nextStep: NextStep) throws -> SomeStep<LastStep.Input, NextStep.Output>
-    where
-    LastStep: Step,
-    NextStep: Step,
-    NextStep.Input == LastStep.Output
-{
-    SomeStep<LastStep.Input, NextStep.Output>(
-        name: names(of: [lastStep, nextStep])
-    ) { (inputForLastStep: LastStep.Input) throws -> NextStep.Output in
-        let inputForNext = try lastStep.perform(input: inputForLastStep)
-        return try nextStep.perform(input: inputForNext)
-    }
-}
 
 func ~> <LastStep, NextStep>(lastStep: LastStep, nextStep: NextStep) -> AnyStep
     where
@@ -152,6 +122,6 @@ func ~> <LastStep, NextStep>(lastStep: LastStep, nextStep: NextStep) -> AnyStep
 }
 
 
-func names(of nameOwners: [Named], separator: String = " -> ") -> String {
-    nameOwners.map { $0.name }.joined(separator: separator)
+func names(of steps: [UnsafeStep], separator: String = " -> ") -> String {
+    steps.map { $0.name }.joined(separator: separator)
 }

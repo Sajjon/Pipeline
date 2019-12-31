@@ -8,21 +8,21 @@
 import Foundation
 
 // MARK: SomeStep
-public struct SomeStep<Input, Output>: Step where Output: Codable, Input: Codable {
-
+public struct SomeStep<Input, Output>: Step {
 
     public let name: String
+    public let cacheableResultTypeIfAny: CacheableResult.Type
     private let _perform: (_ input: Input) throws -> Output
 
-    public init(name: String, perform: @escaping (Input) throws -> Output) {
+    fileprivate init(
+        name: String,
+        cacheableResultType: CacheableResult.Type,
+        perform: @escaping (Input) throws -> Output
+    ) {
         self.name = name
+        self.cacheableResultTypeIfAny = cacheableResultType
         self._perform = perform
     }
-
-    //    public init(unsafeStep: UnsafeStep) {
-    //        self.name = unsafeStep.name
-    //        self.
-    //    }
 }
 
 // MARK: Init
@@ -33,7 +33,10 @@ public extension SomeStep {
         S.Input == Input,
         S.Output == Output
     {
-        self.init(name: step.name) { (input: S.Input) in
+        self.init(
+            name: step.name,
+            cacheableResultType: step.cacheableResultTypeIfAny
+        ) { (input: S.Input) in
             try step.perform(input: input)
         }
     }
@@ -43,13 +46,5 @@ public extension SomeStep {
 public extension SomeStep {
     func perform(input: Input) throws -> Output {
         try _perform(input)
-    }
-
-    func loadCached(from cacher: Cacher, fileName: String) -> Any? {
-        fatalError()
-    }
-
-    func cache(_ any: Any, in cacher: Cacher, fileName: String) throws {
-        fatalError()
     }
 }

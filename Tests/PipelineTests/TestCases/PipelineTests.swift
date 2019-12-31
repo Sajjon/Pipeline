@@ -32,7 +32,7 @@ final class PipelineTests: XCTestCase {
     ]
 }
 
-protocol IntHolder: Equatable, Codable, CustomStringConvertible {
+protocol IntHolder: CacheableResult, Equatable, Codable, CustomStringConvertible {
     var int: Int { get }
 }
 extension IntHolder {

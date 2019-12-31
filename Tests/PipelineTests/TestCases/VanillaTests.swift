@@ -131,10 +131,11 @@ final class VanillaTests: XCTestCase {
 
     static var allTests = [
         ("testCacher", testCacher),
-//        ("testFlowNothingCached", testFlowNothingCached),
-//        ("testFlowStepACachedStartAtA", testFlowStepACachedStartAtA),
-//        ("testFlowStepBCachedStartAtB", testFlowStepBCachedStartAtB),
-//        ("testFlowStepBCachedStartAtA", testFlowStepBCachedStartAtA),
+        ("testFlowNothingCached", testFlowNothingCached),
+        ("testFlowStepACachedStartAtA", testFlowStepACachedStartAtA),
+        ("testFlowStepACachedStartAtAForceUseCaced", testFlowStepACachedStartAtAForceUseCaced),
+        ("testFlowStepBCachedStartAtB", testFlowStepBCachedStartAtB),
+        ("testFlowStepBCachedStartAtA", testFlowStepBCachedStartAtA),
     ]
 }
 

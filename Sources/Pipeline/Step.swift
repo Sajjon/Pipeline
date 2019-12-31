@@ -7,59 +7,27 @@
 
 import Foundation
 
-public protocol Named {}
-
-public struct AnyJSONDecoding {
-    private let _decode: (Data, JSONDecoder) throws -> Any
-    init<Model: Codable>(type _: Model.Type) {
-        self._decode = { try $1.decode(Model.self, from: $0) }
-    }
-    func decode(data: Data, using decoder: JSONDecoder = .init()) throws -> Any {
-        try self._decode(data, decoder)
-    }
-}
-
-public struct AnyJSONEncoding {
-    private let _encode: (Any, JSONEncoder) throws -> Data
-    init<Model: Codable>(type _: Model.Type) {
-        self._encode = {
-            let model: Model = castOrKill($0)
-            return try $1.encode(model)
-        }
-    }
-    func encode(_ encodable: Any, using encoder: JSONEncoder = .init()) throws -> Data {
-        try self._encode(encodable, encoder)
-    }
-}
-
-func decode<Model: Codable>(data: Data, as _: Model.Type) throws -> Model {
-    let decoding = AnyJSONDecoding(type: Model.self)
-    let decoded = try decoding.decode(data: data)
-    let model: Model = castOrKill(decoded)
-    return model
-}
-
-func encode<Model: Codable>(model: Model) throws -> Data {
-    let encoding = AnyJSONEncoding(type: Model.self)
-    return try encoding.encode(model)
-}
-
 // MARK: UnsafeStep
-public protocol UnsafeStep: Named {
+public protocol UnsafeStep {
+    var name: String { get }
     func unsafePerform(anyInput: Any) throws -> Any
-
-
-
-//    func loadCached(from cacher: Cacher, fileName: String) -> Any?
-    var encoding: AnyJSONEncoding { get }
-    var decoding: AnyJSONDecoding { get }
-//    func cache(_ any: Any, in cacher: Cacher, fileName: String) throws
+    var cacheableResultTypeIfAny: CacheableResult.Type { get }
 }
 
-public extension UnsafeStep {
-    var encoding: AnyJSONEncoding { fatalError() }
-    var decoding: AnyJSONDecoding { fatalError() }
-}
+//public struct NoCacheableResult: CacheableResult {}
+//public extension NoCacheableResult {
+//    static func loadCached(from cacher: Cacher, fileName: String) -> Any? {
+//        fatalError()
+//    }
+//
+//    func cache(in cacher: Cacher, fileName: String) throws {
+//        fatalError()
+//    }
+//}
+//
+//public extension UnsafeStep {
+//    var cacheableResultTypeIfAny: CacheableResult.Type { NoCacheableResult.self }
+//}
 
 public protocol PartialUnsafeStepInputSpecifying: UnsafeStep {
     associatedtype Input
@@ -81,41 +49,26 @@ public extension PartialUnsafeStepInputSpecifying {
 }
 
 
-
-public protocol PartialUnsafeStepOutputSpecifying: UnsafeStep {
-    associatedtype Output: Codable
-    func partialUnsafePerform(anyInput: Any) throws -> Output
-}
-
-public extension PartialUnsafeStepOutputSpecifying {
-    func unsafePerform(anyInput: Any) throws -> Any {
-        try partialUnsafePerform(anyInput: anyInput)
-    }
-}
-
-
 // MARK: Step
-//public protocol Step: PartialUnsafeStepInputSpecifying {
-public protocol Step: PartialUnsafeStepOutputSpecifying {
-    associatedtype Input: Codable
-//    associatedtype Output
+public protocol Step: PartialUnsafeStepInputSpecifying {
+    associatedtype Output
     func perform(input: Input) throws -> Output
 }
 
-public extension Step {
-    func partialUnsafePerform(anyInput: Any) throws -> Output {
-        guard let input = anyInput as? Input else {
-            throw UnsafeStepError.cannotPerform(
-                step: self.name,
-                withInput: anyInput,
-                ofType: typeName(of: anyInput),
-                expectedInputType: typeName(of: Input.self)
-            )
-        }
+public extension Step where Output: CacheableResult {
+    var cacheableResultTypeIfAny: CacheableResult.Type {
+        return Output.self
+    }
+}
 
+public extension Step {
+    
+    
+    func partialUnsafePerform(input: Input) throws -> Any {
         return try perform(input: input)
     }
 }
+
 
 public enum UnsafeStepError: Swift.Error, CustomStringConvertible {
     case cannotPerform(
@@ -135,32 +88,7 @@ public extension UnsafeStepError {
     }
 }
 
-extension Step where Output: Codable {
-    func loadCached(from cacher: Cacher, fileName: String) -> Any? {
-        loadCachedOutput(from: cacher, fileName: fileName)
-    }
-
-    func loadCachedOutput(from cacher: Cacher, fileName: String) -> Output? {
-        let maybeCached = try? cacher.load(modelType: Output.self, fileName: fileName)
-        if let foundCached = maybeCached {
-            print("💾 found cached data: '\(foundCached)' for step: '\(self.name)'")
-        } else {
-            print("❌ Found no cached data for step: '\(self.name)'")
-        }
-        return maybeCached
-    }
-
-    func cache(_ any: Any, in cacher: Cacher, fileName: String) throws {
-        let toCache: Output = castOrKill(any)
-        try cacheOutput(toCache, in: cacher, fileName: fileName)
-    }
-
-    func cacheOutput(_ output: Output, in cacher: Cacher, fileName: String) throws {
-        try cacher.save(model: output, fileName: fileName)
-    }
-}
-
-public extension Named {
+public extension UnsafeStep {
     var name: String { typeName(of: self) }
 }
 
